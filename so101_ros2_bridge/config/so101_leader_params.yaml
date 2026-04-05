@@ -1,4 +1,4 @@
-so101_leader_ros2_bridge:
+/**:
   ros__parameters:
     port: "/dev/ttyACM0"
     id: "Gili"
