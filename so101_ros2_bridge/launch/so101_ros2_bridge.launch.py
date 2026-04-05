@@ -20,6 +20,7 @@
 
 
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
 from launch.substitutions import (
     LaunchConfiguration,
     PathJoinSubstitution,
@@ -30,6 +31,11 @@ from launch_ros.substitutions import FindPackageShare
 
 
 def generate_launch_description():
+    type_arg = DeclareLaunchArgument(
+        'type',
+        default_value='follower',
+        description='SO101 bridge type: follower or leader',
+    )
     robot_type = LaunchConfiguration('type')
 
     # Use PathJoinSubstitution to build the path to the config file dynamically
@@ -68,6 +74,7 @@ def generate_launch_description():
 
     return LaunchDescription(
         [
+            type_arg,
             so101_bridge_node,
         ]
     )

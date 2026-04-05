@@ -21,6 +21,8 @@
 # SOFTWARE.
 
 from launch import LaunchDescription
+from launch.conditions import IfCondition
+from launch.substitutions import EqualsSubstitution
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -34,6 +36,7 @@ def generate_launch_description():
         arguments=['arm_controller', '--controller-manager', 'controller_manager'],
         output='screen',
         namespace=robot_type,
+        condition=IfCondition(EqualsSubstitution(robot_type, 'follower')),
     )
 
     gripper_controller_spawner = Node(
@@ -42,6 +45,7 @@ def generate_launch_description():
         arguments=['gripper_controller', '--controller-manager', 'controller_manager'],
         output='screen',
         namespace=robot_type,
+        condition=IfCondition(EqualsSubstitution(robot_type, 'follower')),
     )
 
     joint_state_broadcaster_spawner = Node(

@@ -31,7 +31,7 @@ from launch.actions import (
 )
 from launch.conditions import IfCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import EqualsSubstitution, LaunchConfiguration
+from launch.substitutions import EqualsSubstitution, LaunchConfiguration, PythonExpression
 
 
 def generate_launch_description():
@@ -80,11 +80,19 @@ def generate_launch_description():
     )
     args.append(expert_arg)
 
+    enable_cameras_arg = DeclareLaunchArgument(
+        'enable_cameras',
+        default_value='true',
+        description='Launch camera nodes in real mode',
+    )
+    args.append(enable_cameras_arg)
+
     model = LaunchConfiguration('model')
     display_config = LaunchConfiguration('display_config')
     display = LaunchConfiguration('display')
     teleop_mode = LaunchConfiguration('teleop_mode')
     expert = LaunchConfiguration('expert')
+    enable_cameras = LaunchConfiguration('enable_cameras')
 
     # Debug: Log the mode
     mode_log = LogInfo(msg=['[TELEOP LAUNCH] Mode is set to: ', teleop_mode])
@@ -142,7 +150,9 @@ def generate_launch_description():
     # Include cameras - ONLY in real mode
     camera_log = LogInfo(
         msg='[TELEOP LAUNCH] Launching cameras',
-        condition=IfCondition(EqualsSubstitution(teleop_mode, 'real')),
+        condition=IfCondition(
+            PythonExpression(["'", teleop_mode, "' == 'real' and '", enable_cameras, "' == 'true'"])
+        ),
     )
     actions.append(camera_log)
 
@@ -150,7 +160,9 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(
             os.path.join(bringup_pkg, 'launch', 'include', 'camera.launch.py')
         ),
-        condition=IfCondition(EqualsSubstitution(teleop_mode, 'real')),
+        condition=IfCondition(
+            PythonExpression(["'", teleop_mode, "' == 'real' and '", enable_cameras, "' == 'true'"])
+        ),
     )
     actions.append(cameras_launch)
 

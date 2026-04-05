@@ -19,6 +19,7 @@
 # THE SOFTWARE.
 
 
+import inspect
 from pathlib import Path
 
 # Ensure the conda site-packages directory is in the system path
@@ -32,25 +33,70 @@ from lerobot.teleoperators.so101_leader import SO101Leader, SO101LeaderConfig
 from so101_ros2_bridge.bridge.registry import register_robot
 
 
+def _build_config(config_cls, raw_kwargs: dict):
+    """Build config object while handling minor API drift across lerobot forks."""
+    signature = inspect.signature(config_cls)
+    accepted = set(signature.parameters.keys())
+    kwargs = dict(raw_kwargs)
+
+    # Support either calibration_dir (nimiCurtis) or calibration_path (Seeed SOFollowerConfig).
+    if 'calibration_dir' in kwargs and 'calibration_dir' not in accepted:
+        if 'calibration_path' in accepted:
+            kwargs['calibration_path'] = kwargs['calibration_dir']
+
+    filtered_kwargs = {k: v for k, v in kwargs.items() if k in accepted}
+    config = config_cls(**filtered_kwargs)
+
+    # Backfill missing attrs expected by older/newer robot base classes.
+    for key, value in raw_kwargs.items():
+        if hasattr(config, key):
+            continue
+        try:
+            setattr(config, key, value)
+        except Exception:
+            # Some config objects may be frozen/slots-only; best effort only.
+            pass
+
+    # Keep both names available when either side expects a specific calibration field.
+    if not hasattr(config, 'calibration_dir') and hasattr(config, 'calibration_path'):
+        try:
+            setattr(config, 'calibration_dir', getattr(config, 'calibration_path'))
+        except Exception:
+            pass
+    if not hasattr(config, 'calibration_path') and hasattr(config, 'calibration_dir'):
+        try:
+            setattr(config, 'calibration_path', getattr(config, 'calibration_dir'))
+        except Exception:
+            pass
+
+    return config
+
+
 @register_robot('follower')
 def create_follower(params: dict):
-    config = SO101FollowerConfig(
-        port=params['port'],
-        calibration_dir=Path(params['calibration_dir']),
-        id=params['id'],
-        use_degrees=params['use_degrees'],
-        max_relative_target=params['max_relative_target'],
-        disable_torque_on_disconnect=params['disable_torque_on_disconnect'],
+    config = _build_config(
+        SO101FollowerConfig,
+        {
+            'port': params['port'],
+            'calibration_dir': Path(params['calibration_dir']),
+            'id': params['id'],
+            'use_degrees': params['use_degrees'],
+            'max_relative_target': params['max_relative_target'],
+            'disable_torque_on_disconnect': params['disable_torque_on_disconnect'],
+        },
     )
     return SO101Follower(config)
 
 
 @register_robot('leader')
 def create_leader(params: dict):
-    config = SO101LeaderConfig(
-        port=params['port'],
-        calibration_dir=Path(params['calibration_dir']),
-        id=params['id'],
-        use_degrees=params['use_degrees'],
+    config = _build_config(
+        SO101LeaderConfig,
+        {
+            'port': params['port'],
+            'calibration_dir': Path(params['calibration_dir']),
+            'id': params['id'],
+            'use_degrees': params['use_degrees'],
+        },
     )
     return SO101Leader(config)
