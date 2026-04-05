@@ -254,10 +254,19 @@ class FollowerBridge(SO101ROS2Bridge):
         self.declare_parameter('disable_torque_on_disconnect', True)
         self.declare_parameter('publish_rate', 30.0)
 
-        max_relative_target = (
-            self.get_parameter('max_relative_target').get_parameter_value().integer_value
-        )
-        max_relative_target = max_relative_target if max_relative_target != 0 else None
+        max_relative_target_raw = self.get_parameter('max_relative_target').value
+        if isinstance(max_relative_target_raw, bool):
+            raise ValueError(
+                "Invalid 'max_relative_target' type: bool. Use a numeric value (int/float)."
+            )
+        try:
+            max_relative_target = float(max_relative_target_raw)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                f"Invalid 'max_relative_target' value: {max_relative_target_raw!r}. "
+                'Use 0 (disable) or a positive numeric value.'
+            ) from exc
+        max_relative_target = max_relative_target if max_relative_target != 0.0 else None
 
         return {
             'port': self.get_parameter('port').get_parameter_value().string_value,
