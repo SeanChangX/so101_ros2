@@ -190,10 +190,40 @@ so101_follower_ros2_bridge:
     id: <your follower robot ID>
     calibration_dir: "/abs/path/to/calibration" # Optional. If omitted, falls back to config/calibration/
     use_degrees: true
+    enable_urdf_calibration: false
+    urdf_calibration_file: "/abs/path/to/so101_urdf_calibration.json"
     max_relative_target: 10
     disable_torque_on_disconnect: true
     publish_rate: 30.0
 ```
+
+### Calibrate ROS URDF mapping (RViz alignment)
+
+If RViz joint angles look shifted, mirrored, or scaled compared to the real robot, generate a ROS-side
+calibration file and apply it in the bridge:
+
+```bash
+ros2 run so101_ros2_bridge so101_urdf_calibrate \
+  --method range \
+  --topic /follower/joint_states_raw \
+  --output /tmp/so101_urdf_calibration.json
+```
+
+Run this with `enable_urdf_calibration: false` so you capture the raw bridge output.
+`--method range` flow: first move to `mid pose` and press Enter, then begin continuous
+range recording for all joints. Press Enter again when done. The tool will automatically
+extract per-joint extrema and infer direction, so you do not need to specify min/max manually.
+
+Then enable the mapping in `so101_ros2_bridge/config/so101_follower_params.yaml`:
+
+```yaml
+enable_urdf_calibration: true
+urdf_calibration_file: "/tmp/so101_urdf_calibration.json"
+```
+
+The bridge applies this calibration in both directions:
+- state: robot -> ROS (`urdf = scale * raw + offset`)
+- command: ROS -> robot (inverse transform)
 
 ### Configure Cameras
 

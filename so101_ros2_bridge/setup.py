@@ -27,6 +27,10 @@ setup(
             os.path.join('share', package_name, 'config', 'policies'),
             glob('config/policies/*.yaml'),
         ),
+        (
+            os.path.join('share', package_name, 'config', 'urdf_calibration'),
+            glob('config/urdf_calibration/*.json'),
+        ),
     ],
     install_requires=['setuptools'],
     zip_safe=True,
@@ -40,6 +44,7 @@ setup(
             'follower_ros2_node = so101_ros2_bridge.follower_ros2_node:main',
             'leader_ros2_node = so101_ros2_bridge.leader_ros2_node:main',
             'policy_runner_ros2_node = so101_ros2_bridge.policy_runner_ros2_node:main',
+            'so101_urdf_calibrate = so101_ros2_bridge.urdf_calibrate:main',
         ],
     },
 )

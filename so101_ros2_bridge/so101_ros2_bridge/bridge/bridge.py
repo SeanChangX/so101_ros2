@@ -46,8 +46,14 @@ ensure_conda_site_packages_from_env()
 from lerobot.robots.so101_follower import SO101Follower
 from lerobot.teleoperators.so101_leader import SO101Leader
 
-from so101_ros2_bridge import CALIBRATION_BASE_DIR  # defined in __init__.py
+from so101_ros2_bridge import CALIBRATION_BASE_DIR, DEFAULT_URDF_CALIBRATION_FILE
 from so101_ros2_bridge.bridge.registry import ROBOT_FACTORY_REGISTRY
+from so101_ros2_bridge.utils.joint_calibration import (
+    apply_raw_to_urdf,
+    apply_urdf_to_raw,
+    build_identity_calibration,
+    load_joint_calibration,
+)
 
 
 class SO101ROS2Bridge(Node, ABC):
@@ -64,6 +70,21 @@ class SO101ROS2Bridge(Node, ABC):
         super().__init__(node_name)
         params = self.read_parameters()
         self.use_degrees = params['use_degrees']
+        self.enable_urdf_calibration = params['enable_urdf_calibration']
+        self.urdf_calibration_file = Path(params['urdf_calibration_file'])
+        self.urdf_calibration = build_identity_calibration(self.JOINT_NAMES)
+        if self.enable_urdf_calibration:
+            self.urdf_calibration = load_joint_calibration(
+                self.urdf_calibration_file,
+                self.JOINT_NAMES,
+                logger=self.get_logger(),
+            )
+            self.get_logger().info(
+                'URDF calibration enabled from '
+                f'"{self.urdf_calibration_file}".'
+            )
+        else:
+            self.get_logger().info('URDF calibration disabled. Using raw joint mapping.')
 
         # Initialize watchdog at the background
         self._is_alive = True
@@ -129,15 +150,11 @@ class SO101ROS2Bridge(Node, ABC):
 
             # Update the pre-allocated lists instead of creating new ones
             for i, joint in enumerate(self.JOINT_NAMES):
-                if joint == 'gripper':
-                    pos = ((obs.get(f'{joint}.pos', 0.0)) / 100.0) * math.pi
+                raw_pos = self.observation_to_radians(joint, obs.get(f'{joint}.pos', 0.0))
+                if self.enable_urdf_calibration:
+                    self._positions[i] = apply_raw_to_urdf(self.urdf_calibration, joint, raw_pos)
                 else:
-                    if self.use_degrees:
-                        pos = math.radians(obs.get(f'{joint}.pos', 0.0))
-                    else:
-                        # unormalized range [-100, 100] to radians
-                        pos = (obs.get(f'{joint}.pos', 0.0) / 100.0) * math.pi
-                self._positions[i] = pos
+                    self._positions[i] = raw_pos
 
             if self.last_positions is not None:
                 dt = (current_time - self.last_time).nanoseconds / 1e9
@@ -219,6 +236,14 @@ class SO101ROS2Bridge(Node, ABC):
             normalized = (rad / math.pi) * 100.0
             return normalized
 
+    def observation_to_radians(self, joint_name: str, observation_value: float) -> float:
+        if joint_name == 'gripper':
+            return (observation_value / 100.0) * math.pi
+        if self.use_degrees:
+            return math.radians(observation_value)
+        # unormalized range [-100, 100] to radians
+        return (observation_value / 100.0) * math.pi
+
 
 class FollowerBridge(SO101ROS2Bridge):
     def __init__(self):
@@ -250,6 +275,8 @@ class FollowerBridge(SO101ROS2Bridge):
         self.declare_parameter('id', 'Tzili')
         self.declare_parameter('calibration_dir', str(CALIBRATION_BASE_DIR))
         self.declare_parameter('use_degrees', True)
+        self.declare_parameter('enable_urdf_calibration', False)
+        self.declare_parameter('urdf_calibration_file', str(DEFAULT_URDF_CALIBRATION_FILE))
         self.declare_parameter('max_relative_target', 0)
         self.declare_parameter('disable_torque_on_disconnect', True)
         self.declare_parameter('publish_rate', 30.0)
@@ -275,6 +302,12 @@ class FollowerBridge(SO101ROS2Bridge):
                 self.get_parameter('calibration_dir').get_parameter_value().string_value
             ),
             'use_degrees': self.get_parameter('use_degrees').get_parameter_value().bool_value,
+            'enable_urdf_calibration': (
+                self.get_parameter('enable_urdf_calibration').get_parameter_value().bool_value
+            ),
+            'urdf_calibration_file': (
+                self.get_parameter('urdf_calibration_file').get_parameter_value().string_value
+            ),
             'max_relative_target': max_relative_target,
             'disable_torque_on_disconnect': (
                 self.get_parameter('disable_torque_on_disconnect').get_parameter_value().bool_value
@@ -301,8 +334,11 @@ class FollowerBridge(SO101ROS2Bridge):
 
         target_positions = {}
         for i, joint in enumerate(self.JOINT_NAMES):
+            desired_pos = msg.data[i]
+            if self.enable_urdf_calibration:
+                desired_pos = apply_urdf_to_raw(self.urdf_calibration, joint, desired_pos)
             # Convert the incoming radian command to the format the robot expects (degrees or normalized)
-            target_positions[f'{joint}.pos'] = self.radians_to_normalized(joint, msg.data[i])
+            target_positions[f'{joint}.pos'] = self.radians_to_normalized(joint, desired_pos)
 
         try:
             self.robot.send_action(target_positions)
@@ -324,6 +360,8 @@ class LeaderBridge(SO101ROS2Bridge):
         self.declare_parameter('id', 'Gili')
         self.declare_parameter('calibration_dir', str(CALIBRATION_BASE_DIR))
         self.declare_parameter('use_degrees', True)
+        self.declare_parameter('enable_urdf_calibration', False)
+        self.declare_parameter('urdf_calibration_file', str(DEFAULT_URDF_CALIBRATION_FILE))
         self.declare_parameter('publish_rate', 30.0)
 
         return {
@@ -333,6 +371,12 @@ class LeaderBridge(SO101ROS2Bridge):
                 self.get_parameter('calibration_dir').get_parameter_value().string_value
             ),
             'use_degrees': self.get_parameter('use_degrees').get_parameter_value().bool_value,
+            'enable_urdf_calibration': (
+                self.get_parameter('enable_urdf_calibration').get_parameter_value().bool_value
+            ),
+            'urdf_calibration_file': (
+                self.get_parameter('urdf_calibration_file').get_parameter_value().string_value
+            ),
             'publish_rate': self.get_parameter('publish_rate').get_parameter_value().double_value,
         }
 

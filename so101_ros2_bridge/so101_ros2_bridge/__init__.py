@@ -26,5 +26,8 @@ from ament_index_python.packages import get_package_share_directory
 PACKAGE_DIR = Path(get_package_share_directory('so101_ros2_bridge'))
 # Default calibration path relative to this package
 CALIBRATION_BASE_DIR = PACKAGE_DIR / 'config' / 'calibration'
+# Default URDF calibration file path relative to this package
+URDF_CALIBRATION_DIR = PACKAGE_DIR / 'config' / 'urdf_calibration'
+DEFAULT_URDF_CALIBRATION_FILE = URDF_CALIBRATION_DIR / 'default.json'
 # Default policy directory
 POLICY_BASE_DIR = PACKAGE_DIR / 'config' / 'policies'
