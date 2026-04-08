@@ -54,6 +54,11 @@ class CameraSpec:
     param_path: Path
     namespace: Optional[str] = None
     remappings: Optional[List[Tuple[str, str]]] = None  # optional per-camera overrides
+    tf_parent_frame: Optional[str] = None
+    tf_child_frame: Optional[str] = None
+    tf_xyz: Optional[List[float]] = None
+    tf_rpy: Optional[List[float]] = None
+    tf_tuner: bool = False
 
 
 def _resolve_param_path(relative_param_path: str) -> Path:
@@ -78,6 +83,11 @@ def parse_cameras_config(
         rel_param = cam.get('param_path')
         namespace = cam.get('namespace')
         remappings = cam.get('remappings')  # optional
+        tf_parent_frame = cam.get('tf_parent_frame')
+        tf_child_frame = cam.get('tf_child_frame')
+        tf_xyz = cam.get('tf_xyz')
+        tf_rpy = cam.get('tf_rpy')
+        tf_tuner = bool(cam.get('tf_tuner', False))
 
         if not name or not cam_type or not rel_param:
             raise ValueError(
@@ -95,6 +105,11 @@ def parse_cameras_config(
                 param_path=_resolve_param_path(rel_param),
                 namespace=namespace,
                 remappings=remappings,  # may be None
+                tf_parent_frame=tf_parent_frame,
+                tf_child_frame=tf_child_frame,
+                tf_xyz=tf_xyz,
+                tf_rpy=tf_rpy,
+                tf_tuner=tf_tuner,
             )
         )
     return cams
@@ -146,11 +161,93 @@ def build_node_for_camera(spec: CameraSpec) -> Node:
     )
 
 
+def build_mount_tf_node_for_camera(spec: CameraSpec) -> Optional[Node]:
+    # Optional static TF from robot link -> camera base link.
+    # Useful for wrist-mounted cameras so point cloud follows robot motion in RViz.
+    if not spec.tf_parent_frame:
+        return None
+
+    child_frame = spec.tf_child_frame or f'{spec.name}_link'
+    xyz = spec.tf_xyz if isinstance(spec.tf_xyz, list) and len(spec.tf_xyz) == 3 else [0.0, 0.0, 0.0]
+    rpy = spec.tf_rpy if isinstance(spec.tf_rpy, list) and len(spec.tf_rpy) == 3 else [0.0, 0.0, 0.0]
+
+    return Node(
+        package='tf2_ros',
+        executable='static_transform_publisher',
+        name=f'{spec.name}_mount_tf',
+        output='screen',
+        arguments=[
+            '--x',
+            str(xyz[0]),
+            '--y',
+            str(xyz[1]),
+            '--z',
+            str(xyz[2]),
+            '--roll',
+            str(rpy[0]),
+            '--pitch',
+            str(rpy[1]),
+            '--yaw',
+            str(rpy[2]),
+            '--frame-id',
+            spec.tf_parent_frame,
+            '--child-frame-id',
+            child_frame,
+        ],
+    )
+
+
+def build_mount_tf_tuner_node_for_camera(spec: CameraSpec) -> Optional[Node]:
+    # Optional interactive TF tuner (slider window).
+    if not spec.tf_tuner or not spec.tf_parent_frame:
+        return None
+
+    child_frame = spec.tf_child_frame or f'{spec.name}_link'
+    xyz = spec.tf_xyz if isinstance(spec.tf_xyz, list) and len(spec.tf_xyz) == 3 else [0.0, 0.0, 0.0]
+    rpy = spec.tf_rpy if isinstance(spec.tf_rpy, list) and len(spec.tf_rpy) == 3 else [0.0, 0.0, 0.0]
+
+    return Node(
+        package='so101_bringup',
+        executable='camera_tf_tuner.py',
+        name=f'{spec.name}_tf_tuner',
+        output='screen',
+        arguments=[
+            '--parent',
+            spec.tf_parent_frame,
+            '--child',
+            child_frame,
+            '--x',
+            str(xyz[0]),
+            '--y',
+            str(xyz[1]),
+            '--z',
+            str(xyz[2]),
+            '--roll',
+            str(rpy[0]),
+            '--pitch',
+            str(rpy[1]),
+            '--yaw',
+            str(rpy[2]),
+        ],
+    )
+
+
 def generate_launch_description():
     camera_specs = parse_cameras_config()
 
-    # Build one Node per camera
-    nodes = [build_node_for_camera(spec) for spec in camera_specs]
+    # Build one camera node per camera plus optional camera mount static TF nodes.
+    nodes: List[Node] = []
+    for spec in camera_specs:
+        nodes.append(build_node_for_camera(spec))
+
+        if spec.tf_tuner:
+            mount_tf_tuner_node = build_mount_tf_tuner_node_for_camera(spec)
+            if mount_tf_tuner_node is not None:
+                nodes.append(mount_tf_tuner_node)
+        else:
+            mount_tf_node = build_mount_tf_node_for_camera(spec)
+            if mount_tf_node is not None:
+                nodes.append(mount_tf_node)
 
     # GroupAction keeps the launch tree tidy; you could also just return the nodes directly
     return LaunchDescription([GroupAction(nodes)])

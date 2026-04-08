@@ -1,9 +1,11 @@
 /**:
   ros__parameters:
-    port: "/dev/ttyACM1"
-    id: "Tzili"
-    # calibration_dir: <abs path to your calibration dir>
+    port: "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5B42134784-if00"
+    id: "my_awesome_follower_arm"
+    calibration_dir: "/home/user_lerobot/.cache/huggingface/lerobot/calibration/robots/so_follower"
     use_degrees: true
-    max_relative_target: 10 # default is none
+    enable_urdf_calibration: true
+    urdf_calibration_file: "/workspace/so101_urdf_calibration.json"
+    max_relative_target: 0
     disable_torque_on_disconnect: true
     publish_rate: 50.0

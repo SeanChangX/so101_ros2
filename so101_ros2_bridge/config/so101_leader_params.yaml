@@ -1,9 +1,11 @@
 /**:
   ros__parameters:
-    port: "/dev/ttyACM0"
-    id: "Gili"
-    # calibration_dir: <abs path to your calibration dir>
+    port: "/dev/serial/by-id/usb-1a86_USB_Single_Serial_5B42134848-if00"
+    id: "my_awesome_leader_arm"
+    calibration_dir: "/home/user_lerobot/.cache/huggingface/lerobot/calibration/teleoperators/so_leader"
     use_degrees: true
+    enable_urdf_calibration: true
+    urdf_calibration_file: "/workspace/so101_urdf_calibration.json"
     # max_relative_target: 10 # default is none
     disable_torque_on_disconnect: true
     publish_rate: 50.0

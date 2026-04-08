@@ -13,7 +13,7 @@ sdr:
     topic_names: [
       "/follower/joint_states",
       "/leader/joint_states",
-      "/follower/cam_front/image_raw",
+      "/follower/cam_front/color/image_raw",
       "/static_camera/cam_side/color/image_raw"
 
     ]

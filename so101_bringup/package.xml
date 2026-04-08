@@ -11,6 +11,9 @@
 
   <exec_depend>usb_cam</exec_depend>
   <exec_depend>realsense2_camera</exec_depend>
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
   <!-- (Optional) if you use the RS URDF/meshes -->
   <exec_depend>realsense2_description</exec_depend>
   <test_depend>ament_lint_auto</test_depend>

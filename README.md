@@ -264,6 +264,54 @@ Then in so101_usb_camera.yaml you can set the parameters for that specific camer
     camera_info_url: "package://usb_cam/config/camera_info.yaml"
 
 ```
+
+#### Tune camera mount TF with web sliders (RealSense)
+
+For wrist-mounted RealSense cameras you can tune the mount transform online via a browser.
+
+In `so101_bringup/config/so101_cameras.yaml`, add the TF fields to the camera entry:
+
+```yaml
+cameras:
+  - name: cam_front
+    camera_type: realsense2_camera
+    param_path: so101_realsense2.yaml
+    namespace: follower
+    tf_parent_frame: follower/gripper_frame_link
+    tf_child_frame: cam_front_link
+    tf_xyz: [0.0, 0.0, 0.0]
+    tf_rpy: [0.0, 0.0, 0.0]
+    tf_tuner: true
+```
+
+Build and run:
+
+```bash
+cd /workspace/ros2_ws
+colcon build --packages-select so101_bringup --symlink-install
+source install/setup.bash
+ros2 launch so101_bringup so101_teleoperate.launch.py teleop_mode:=real expert:=human display:=true enable_cameras:=true
+```
+
+When `tf_tuner: true`, the camera launch starts `camera_tf_tuner.py` and prints the web URL (default `http://127.0.0.1:8765`).
+
+If running in Docker/VM, open `http://<container-or-vm-ip>:8765` from your host browser.
+
+In RViz, set `Global Options -> Fixed Frame` to `follower/base_link` (or `world`) when tuning.
+If `Fixed Frame` is `cam_front_link`, changing roll/pitch/yaw may appear to do nothing.
+
+After alignment, click **Print YAML to Terminal** in the web UI and copy the printed `tf_xyz`/`tf_rpy` values back into `so101_cameras.yaml`.
+For upside-down RealSense mounting, prefer enabling driver-side rotation in `so101_realsense2.yaml`:
+
+```yaml
+/follower/cam_front:
+  ros__parameters:
+    rotation_filter.enable: true
+    rotation_filter.rotation: 180.0
+```
+
+This path is faster because rotation is handled inside the RealSense driver.
+
 ### Launch the robot with cameras
 To visualise the robot description with the camera pipelines enabled run:
 ```bash
@@ -294,7 +342,7 @@ This workspace connects the Lerobot leader/follower stack with ROS2 so you can t
 Launch the leader and follower bridges, cameras and RViz in one terminal:
 
 ```bash
-ros2 launch so101_bringup so101_teleoperate.launch.py mode:=real expert:=human display:=true
+ros2 launch so101_bringup so101_teleoperate.launch.py teleop_mode:=real expert:=human display:=true
 ```
 
 The launch file brings up the leader bridge immediately >> waits for the follower to connect >> optionally opens RViz (`display:=true`) >> starts the teleoperation componenet once both arms publish joint states.
@@ -317,7 +365,7 @@ You should now be able to move the leader arm and see the follower mimicking its
 3. Launch in a second terminal the teleoperation pipeline connected to the Isaac transport topics:
 
   ```bash
-  ros2 launch so101_bringup so101_teleoperate.launch.py mode:=isaac expert:=human display:=true
+  ros2 launch so101_bringup so101_teleoperate.launch.py teleop_mode:=isaac expert:=human display:=true
   ```
 
 4. Start simulation.
@@ -473,7 +521,7 @@ ros2 lifecycle set /policy_runner activate
 Once configured, launch the teleoperation pipeline with policy expert:
 
 ```bash
-ros2 launch so101_bringup so101_teleoperate.launch.py mode:=real expert:=policy display:=true
+ros2 launch so101_bringup so101_teleoperate.launch.py teleop_mode:=real expert:=policy display:=true
 ```
 
 The launch file will start follower bridge, cameras, policy lifecycle node and RViz (if `display:=true`). The policy node will wait until both leader and follower are publishing joint states before activating the inference loop.
@@ -494,7 +542,7 @@ Then the follower arm should start moving according to the policy's predictions 
 Launch the teleoperation pipeline with policy expert connected to Isaac transport topics:
 
 ```bash
-ros2 launch so101_bringup so101_teleoperate.launch.py mode:=isaac expert:=policy display:=true
+ros2 launch so101_bringup so101_teleoperate.launch.py teleop_mode:=isaac expert:=policy display:=true
 ```
 
 Then in another terminal, configure and activate the policy node as already shown above.

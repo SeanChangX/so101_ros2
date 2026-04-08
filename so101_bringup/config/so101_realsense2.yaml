@@ -94,7 +94,26 @@
 
 
 # Per-node overrides (use your actual namespaces & names)
-# Example 1: static_camera/cam_side  → /static_camera/cam_side/color/image_raw
+# Example 1: follower/cam_front  → /follower/cam_front/color/image_raw
+/follower/cam_front:
+  ros__parameters:
+    serial_no: "949122070619"                      # serial number (use rs-enumerate-devices)
+    camera_namespace: "follower"                   # namespace
+    base_frame_id: "cam_front_link"                # base link frame
+    tf_prefix: ""                                  # keep empty to match tf_child_frame (cam_front_link)
+    enable_color: true                             # enable color stream
+    enable_depth: true                             # enable depth stream
+    enable_sync: true                              # sync depth/color timestamps
+    align_depth.enable: true                       # align depth to color
+    rotation_filter.enable: false                  # rotation handled by physical camera mounting
+    rotation_filter.rotation: 0.0                  # no software rotation
+    pointcloud.enable: true                        # publish point cloud
+    pointcloud.stream_filter: 2                    # use color stream for texture
+    pointcloud.stream_index_filter: 0              # color stream index
+    rgb_camera.color_profile: "640,480,15"         # lighter color profile for RViz point cloud stability
+    depth_module.depth_profile: "640,480,15"       # lighter depth profile to reduce point cloud load
+
+# Example 2: static_camera/cam_side  → /static_camera/cam_side/color/image_raw
 /static_camera/cam_side:
   ros__parameters:
     usb_port_id: ""                                 # optional: pin USB port ID
@@ -104,8 +123,8 @@
     base_frame_id: "cam_side_link"                  # base link frame
     tf_prefix: "cam_side"                           # TF prefix
     enable_color: true                              # enable color stream
-    enable_depth: false                              # enable depth stream
-    align_depth.enable: false                        # align depth to color
+    enable_depth: false                             # enable depth stream
+    align_depth.enable: false                       # align depth to color
     rgb_camera.color_profile: "640,480,30"          # color stream profile
     depth_module.depth_profile: "640,480,30"        # depth stream profile
     depth_module.infra_profile: "640,480,30"

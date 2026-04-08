@@ -109,7 +109,24 @@ Visualization Manager:
         Durability Policy: Volatile
         History Policy: Keep Last
         Reliability Policy: Reliable
-        Value: /follower/cam_front/image_raw
+        Value: /follower/cam_front/color/image_raw
+      Value: true
+    - Alpha: 1
+      Class: rviz_default_plugins/PointCloud2
+      Enabled: true
+      Name: FrontPointCloud
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 2
+      Size (m): 0.01
+      Style: Point
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /follower/cam_front/depth/color/points
+      Use Fixed Frame: true
       Value: true
     - Class: rviz_default_plugins/Image
       Enabled: true
@@ -201,6 +218,8 @@ Window Geometry:
   RobotCamera:
     collapsed: false
   Selection:
+    collapsed: false
+  FrontPointCloud:
     collapsed: false
   StaticCamera:
     collapsed: false

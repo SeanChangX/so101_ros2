@@ -124,7 +124,7 @@ class SO101PolicyRunner(LifecycleNode):
         # ---------- Defaults ----------
         default_observations = {
             'observation.images.camera1': {
-                'topic': '/follower/cam_front/image_raw',
+                'topic': '/follower/cam_front/color/image_raw',
                 'msg_type': 'sensor_msgs/msg/Image',
             },
             'observation.images.camera2': {
