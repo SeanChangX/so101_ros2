@@ -6,8 +6,8 @@ cameras:
     namespace: follower # ns (info of cam location)
     tf_parent_frame: follower/gripper_frame_link # robot link camera is mounted on
     tf_child_frame: cam_front_depth_optical_frame # use actual frame_id from pointcloud header
-    tf_xyz: [-0.0030, 0.0480, -0.0400] # meters
-    tf_rpy: [-0.3229, 0.0559, 3.1416] # radians
+    tf_xyz: [-0.0004, 0.0459, -0.0351] # meters
+    tf_rpy: [-0.2164, 0.0419, 2.9688] # radians
     tf_tuner: false
 
   # - name: cam_side
