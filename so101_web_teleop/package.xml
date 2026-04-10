@@ -12,6 +12,7 @@
   <depend>std_msgs</depend>
   <depend>std_srvs</depend>
   <depend>ament_index_python</depend>
+  <exec_depend>python3-numpy</exec_depend>
 
   <!-- rosbridge provides the WebSocket ↔ ROS bridge -->
   <exec_depend>rosbridge_server</exec_depend>

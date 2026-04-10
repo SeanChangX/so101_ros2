@@ -14,7 +14,7 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
@@ -39,6 +39,7 @@ def generate_launch_description():
     ws_port = LaunchConfiguration('ws_port')
     ssl_cert = LaunchConfiguration('ssl_cert')
     ssl_key = LaunchConfiguration('ssl_key')
+    ssl_enabled = PythonExpression(["'", ssl_cert, "' != '' and '", ssl_key, "' != ''"])
 
     # ── 1. Follower robot (hardware bridge + controllers) ──
     follower_launch = IncludeLaunchDescription(
@@ -68,7 +69,7 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'port': ws_port,
-            'ssl': False,
+            'ssl': ssl_enabled,
             'certfile': ssl_cert,
             'keyfile': ssl_key,
             'authenticate': False,

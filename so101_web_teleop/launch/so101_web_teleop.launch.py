@@ -27,7 +27,7 @@
 
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution, PythonExpression
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 
@@ -55,6 +55,7 @@ def generate_launch_description():
     ws_port   = LaunchConfiguration('ws_port')
     ssl_cert  = LaunchConfiguration('ssl_cert')
     ssl_key   = LaunchConfiguration('ssl_key')
+    ssl_enabled = PythonExpression(["'", ssl_cert, "' != '' and '", ssl_key, "' != ''"])
 
     # ── rosbridge websocket — launched directly as a Node to avoid XML include issues ──
     rosbridge_node = Node(
@@ -64,7 +65,7 @@ def generate_launch_description():
         output='screen',
         parameters=[{
             'port':              ws_port,
-            'ssl':               False,
+            'ssl':               ssl_enabled,
             'certfile':          ssl_cert,
             'keyfile':           ssl_key,
             'authenticate':      False,

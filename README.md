@@ -351,6 +351,37 @@ Watch the log output for any connection errors—most issues stem from missing c
 
 You should now be able to move the leader arm and see the follower mimicking its motions in real time and RViz which visualises the follower cameras and follower state comparing to the leader state.
 
+### Run a web teleoperation session
+
+`so101_web_teleop` lets a phone browser act as the leader input. The web page reads
+browser orientation/motion events, sends them through rosbridge, and the ROS node publishes
+`/leader/joint_states` for the existing follower teleop pipeline.
+
+Start the follower, leader teleop component, rosbridge, and web server:
+
+```bash
+ros2 launch so101_web_teleop so101_web_teleoperate.launch.py
+```
+
+Open `http://<robot-host-ip>:8080` on the phone, tap `Take Control`, then `Start Control`.
+The phone and robot host must be on the same network. Port `8080` serves the web UI and
+port `9090` is rosbridge.
+
+The default flow uses HTTP and does not require certificates. Some mobile browsers restrict
+orientation APIs on plain HTTP; for quick Android Chrome testing you can allow the origin via
+`chrome://flags/#unsafely-treat-insecure-origin-as-secure`.
+
+For HTTPS, provide both cert paths so the web server and rosbridge use TLS:
+
+```bash
+ros2 launch so101_web_teleop so101_web_teleoperate.launch.py \
+  http_port:=8443 \
+  ssl_cert:=/certs/robot.pem \
+  ssl_key:=/certs/robot-key.pem
+```
+
+When running through this repository's Docker compose setup, mount `./certs` to `/certs`
+before using the HTTPS launch arguments.
 
 ### Run an Isaac teleoperation session
 
