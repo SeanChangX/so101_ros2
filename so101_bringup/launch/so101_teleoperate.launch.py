@@ -164,7 +164,17 @@ def generate_launch_description():
             PythonExpression(["'", teleop_mode, "' == 'real' and '", enable_cameras, "' == 'true'"])
         ),
     )
-    actions.append(cameras_launch)
+    # Delay cameras until the follower TF chain is ready (follower 5s +
+    # controller spawners 6s = 11s minimum). 13s gives a safe margin so the
+    # message filter never queues depth frames without a valid transform.
+    delayed_cameras_launch = TimerAction(
+        period=13.0,
+        actions=[cameras_launch],
+        condition=IfCondition(
+            PythonExpression(["'", teleop_mode, "' == 'real' and '", enable_cameras, "' == 'true'"])
+        ),
+    )
+    actions.append(delayed_cameras_launch)
 
     # Include sim_isaac.launch ONLY if teleop_mode == "isaac"
     isaac_log = LogInfo(

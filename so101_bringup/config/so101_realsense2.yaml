@@ -107,11 +107,21 @@
     align_depth.enable: true                       # align depth to color
     rotation_filter.enable: false                  # rotation handled by physical camera mounting
     rotation_filter.rotation: 0.0                  # no software rotation
+    publish_tf: false                               # mount TF handles the connection to robot TF tree;
+                                                    # leaving this true causes a parent-frame conflict on
+                                                    # cam_front_depth_optical_frame (two publishers) which
+                                                    # makes the point cloud appear/disappear randomly.
     pointcloud.enable: true                        # publish point cloud
     pointcloud.stream_filter: 2                    # use color stream for texture
     pointcloud.stream_index_filter: 0              # color stream index
+    pointcloud.ordered_pc: false                   # unordered saves serialization overhead
     rgb_camera.color_profile: "640,480,15"         # lighter color profile for RViz point cloud stability
     depth_module.depth_profile: "640,480,15"       # lighter depth profile to reduce point cloud load
+    decimation_filter.enable: true                 # downsample depth before point cloud generation
+    decimation_filter.filter_magnitude: 3          # 3 = ~9x fewer points (640/3 * 480/3 ~ 34K vs 307K)
+    temporal_filter.enable: true                   # smooth depth over time, reduces flicker and noise
+    spatial_filter.enable: true                    # fill small holes, smooth within each frame
+    clip_distance: 4.0                             # discard depth beyond 1 m (arm workspace)
 
 # Example 2: static_camera/cam_side  → /static_camera/cam_side/color/image_raw
 /static_camera/cam_side:

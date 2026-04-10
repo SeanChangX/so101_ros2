@@ -121,10 +121,10 @@ Visualization Manager:
       Size (m): 0.01
       Style: Point
       Topic:
-        Depth: 5
+        Depth: 10
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
+        Reliability Policy: Best Effort
         Value: /follower/cam_front/depth/color/points
       Use Fixed Frame: true
       Value: true

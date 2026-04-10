@@ -37,6 +37,7 @@ from rclpy.qos import (
 )
 from sensor_msgs.msg import JointState
 from std_msgs.msg import Float64MultiArray
+from std_srvs.srv import SetBool
 
 # Ensure the conda site-packages directory is in the system path
 from so101_ros2_bridge.utils.core import ensure_conda_site_packages_from_env
@@ -268,7 +269,46 @@ class FollowerBridge(SO101ROS2Bridge):
             self.command_callback,
             qos_joint_cmds,
         )
+        self._servo_bus = self._resolve_servo_bus()
+        self._torque_enabled = True
+        self.create_service(SetBool, 'set_torque', self._set_torque_cb)
         self.get_logger().info('SO101 Follower ROS2 Bridge initialized.')
+
+    def _resolve_servo_bus(self):
+        """Find the low-level Feetech bus from the lerobot robot object."""
+        for attr in ('bus', 'arm', 'arm_bus', 'follower_bus'):
+            bus = getattr(self.robot, attr, None)
+            if bus is not None:
+                return bus
+        for attr in ('follower_arms', 'arms'):
+            d = getattr(self.robot, attr, None)
+            if isinstance(d, dict) and d:
+                return next(iter(d.values()))
+        self.get_logger().warn(
+            'Could not locate servo bus on robot object; set_torque will be unavailable')
+        return None
+
+    def _set_torque_cb(self, request: SetBool.Request, response: SetBool.Response):
+        label = 'enabled' if request.data else 'disabled'
+        if self._servo_bus is None:
+            response.success = False
+            response.message = 'Servo bus not found on robot object'
+            return response
+        try:
+            if request.data:
+                self._servo_bus.enable_torque()
+                self._torque_enabled = True
+            else:
+                self._torque_enabled = False
+                self._servo_bus.disable_torque()
+            response.success = True
+            response.message = f'Torque {label}'
+            self.get_logger().info(f'Torque {label}')
+        except Exception as e:
+            self.get_logger().error(f'set_torque failed: {e}')
+            response.success = False
+            response.message = str(e)
+        return response
 
     def read_parameters(self) -> dict:
         self.declare_parameter('port', '/dev/ttyACM1')
@@ -326,6 +366,9 @@ class FollowerBridge(SO101ROS2Bridge):
         """
         Receives joint command goals in radians and sends them to the robot.
         """
+        if not self._torque_enabled:
+            return
+
         if len(msg.data) != len(self.JOINT_NAMES):
             self.get_logger().error(
                 f'Received command with {len(msg.data)} joints, but expected {len(self.JOINT_NAMES)}.'
@@ -337,7 +380,6 @@ class FollowerBridge(SO101ROS2Bridge):
             desired_pos = msg.data[i]
             if self.enable_urdf_calibration:
                 desired_pos = apply_urdf_to_raw(self.urdf_calibration, joint, desired_pos)
-            # Convert the incoming radian command to the format the robot expects (degrees or normalized)
             target_positions[f'{joint}.pos'] = self.radians_to_normalized(joint, desired_pos)
 
         try:

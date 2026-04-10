@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>SO101 Web Teleop</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0d0d0d;
+      --surface:   #161616;
+      --surface2:  #1f1f1f;
+      --border:    #2a2a2a;
+      --accent:    #cc0000;
+      --accent-hi: #ff1a1a;
+      --text:      #e0e0e0;
+      --muted:     #666;
+      --green:     #22c55e;
+      --yellow:    #eab308;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-size: 15px;
+      -webkit-font-smoothing: antialiased;
+      overscroll-behavior: none;
+    }
+
+    .app {
+      display: flex;
+      flex-direction: column;
+      min-height: 100dvh;
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 0 16px 32px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 0 14px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+    .logo {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text);
+    }
+    .logo span { color: var(--accent); }
+
+    .ws-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+      transition: background 0.3s;
+    }
+    .dot.green  { background: var(--green); }
+    .dot.red    { background: var(--accent); }
+    .dot.yellow { background: var(--yellow); }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .card-title {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .session-banner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .session-banner.mine  { color: var(--text); }
+    .session-banner.other { color: var(--yellow); }
+
+    .imu-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .imu-cell {
+      background: var(--surface2);
+      border-radius: 6px;
+      padding: 10px 8px;
+      text-align: center;
+    }
+    .imu-label {
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .imu-value {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--accent-hi);
+      transition: color 0.15s;
+    }
+    .imu-value.inactive { color: var(--muted); }
+
+    /* delta display under orientation */
+    .imu-delta {
+      margin-top: 10px;
+      padding: 8px 10px;
+      background: var(--surface2);
+      border-radius: 6px;
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-around;
+    }
+    .imu-delta .active { color: var(--green); }
+
+    .slider-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .slider-wrap { flex: 1; }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      background: var(--surface2);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: var(--accent);
+      cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+    }
+    input[type="range"]::-webkit-slider-thumb:active {
+      background: var(--accent-hi);
+      transform: scale(1.2);
+    }
+    input[type="range"]:disabled::-webkit-slider-thumb {
+      background: var(--muted);
+    }
+    input[type="range"]:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .slider-val {
+      font-family: 'Courier New', Courier, monospace;
+      font-size: 14px;
+      color: var(--text);
+      min-width: 40px;
+      text-align: right;
+    }
+
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 18px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s, transform 0.1s;
+      margin-bottom: 10px;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:not(:disabled):hover { background: var(--accent-hi); }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .btn-outline:not(:disabled):hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+
+    .btn-danger {
+      background: transparent;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+    }
+    .btn-danger:not(:disabled):hover {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-reset {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .btn-reset:not(:disabled):hover {
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    .btn-pause {
+      background: transparent;
+      border: 1px solid var(--yellow);
+      color: var(--yellow);
+    }
+    .btn-pause:not(:disabled):hover {
+      background: var(--yellow);
+      color: var(--bg);
+    }
+
+    .ctrl-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent-hi);
+      margin-bottom: 14px;
+    }
+    .ctrl-pill .dot { animation: pulse 1.2s infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    .notice {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+      padding: 8px 0;
+      line-height: 1.5;
+    }
+    .notice.warn { color: var(--yellow); }
+
+    footer {
+      margin-top: auto;
+      padding-top: 20px;
+      font-size: 11px;
+      color: var(--border);
+      text-align: center;
+      letter-spacing: 0.05em;
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <div class="logo">SO<span>101</span> Teleop</div>
+    <div class="ws-badge">
+      <div class="dot" id="wsDot"></div>
+      <span id="wsLabel">Connecting...</span>
+    </div>
+  </header>
+
+  <!-- Session status -->
+  <div class="card">
+    <div class="card-title">Session</div>
+    <div class="session-banner" id="sessionBanner">
+      <div class="dot" id="sessionDot"></div>
+      <span id="sessionLabel">Checking...</span>
+    </div>
+  </div>
+
+  <!-- Orientation data -->
+  <div class="card" id="imuCard">
+    <div class="card-title">Phone = Gripper (orientation + height)</div>
+    <div class="imu-grid">
+      <div class="imu-cell">
+        <div class="imu-label">Yaw (base)</div>
+        <div class="imu-value inactive" id="valAlpha">---</div>
+      </div>
+      <div class="imu-cell">
+        <div class="imu-label">Pitch (arm)</div>
+        <div class="imu-value inactive" id="valBeta">---</div>
+      </div>
+      <div class="imu-cell">
+        <div class="imu-label">Roll (wrist)</div>
+        <div class="imu-value inactive" id="valGamma">---</div>
+      </div>
+    </div>
+    <div class="imu-delta" id="imuDelta" style="display:none">
+      <span id="deltaYaw">Yaw: 0.0</span>
+      <span id="deltaFB">Pitch: 0.0</span>
+      <span id="deltaLR">Roll: 0.0</span>
+      <span id="deltaZ">Z: 0.0</span>
+    </div>
+  </div>
+
+  <!-- Gripper -->
+  <div class="card">
+    <div class="card-title">Gripper</div>
+    <div class="slider-row">
+      <div class="slider-wrap">
+        <input type="range" id="gripperSlider" min="0" max="100" value="0" disabled />
+      </div>
+      <div class="slider-val"><span id="gripperVal">0</span>%</div>
+    </div>
+  </div>
+
+  <!-- Control buttons (rendered dynamically) -->
+  <div id="btnArea"></div>
+
+  <div id="iosNotice" class="notice warn" style="display:none">
+    iOS requires explicit permission to read orientation.<br>Tap the button above to grant it.
+  </div>
+  <div id="httpNotice" class="notice" style="display:none">
+    Running over HTTP -- orientation may be blocked on some browsers.<br>
+    On Android Chrome: enable
+    <em>chrome://flags/#unsafely-treat-insecure-origin-as-secure</em>
+  </div>
+
+  <footer>SO101 -- ROS 2 Humble -- rosbridge</footer>
+</div>
+
+<!-- roslibjs: local first, CDN fallback -->
+<script src="/roslib.min.js" onerror="
+  var s=document.createElement('script');
+  s.src='https://cdn.jsdelivr.net/npm/roslib@1/build/roslib.min.js';
+  document.head.appendChild(s);
+"></script>
+
+<script>
+'use strict';
+
+// ---- Config ----
+const ROS_HOST = window.location.hostname;
+const ROS_PORT = 9090;
+const WS_PROTO = window.location.protocol === 'https:' ? 'wss' : 'ws';
+const ROS_URL  = `${WS_PROTO}://${ROS_HOST}:${ROS_PORT}`;
+
+const HEARTBEAT_MS  = 8000;
+const STATUS_POLL_MS = 3000;
+const IMU_HZ = 20;
+const IMU_MS = 1000 / IMU_HZ;
+
+// ---- State ----
+let sessionToken    = null;
+let controlActive   = false;
+let rosConnected    = false;
+let heartbeatHandle = null;
+let statusPollHandle = null;
+let wakeLock        = null;
+let lastImuPublish  = 0;
+
+let imuPub     = null;
+let gripperPub = null;
+let zPub       = null;
+
+let curAlpha = 0, curBeta = 0, curGamma = 0;
+let homeAlpha = null, homeBeta = null, homeGamma = null;
+let imuListening = false;
+
+// Z axis: phone vertical acceleration -> arm height
+let filteredAUp = 0;
+let motionZOut = 0;
+let motionListening = false;
+const Z_LPF = 0.25;
+const Z_DEADZONE_MS2 = 0.5;
+const Z_SCALE = 3.0;
+let lastZPublish = 0;
+let motionSourceLogged = false;
+
+// ---- ROS connection ----
+let ros;
+
+function connectRos() {
+  ros = new ROSLIB.Ros({ url: ROS_URL });
+
+  ros.on('connection', () => {
+    rosConnected = true;
+    setDot('wsDot', 'green');
+    setText('wsLabel', `${ROS_HOST}:${ROS_PORT}`);
+    setupTopics();
+  });
+  ros.on('error', () => {
+    rosConnected = false;
+    setDot('wsDot', 'red');
+    setText('wsLabel', 'Error');
+  });
+  ros.on('close', () => {
+    rosConnected = false;
+    setDot('wsDot', 'red');
+    setText('wsLabel', 'Disconnected');
+    setTimeout(connectRos, 3000);
+  });
+}
+
+function setupTopics() {
+  imuPub = new ROSLIB.Topic({
+    ros, name: '/web_teleop/imu_command',
+    messageType: 'std_msgs/Float64MultiArray',
+  });
+  gripperPub = new ROSLIB.Topic({
+    ros, name: '/web_teleop/gripper_cmd',
+    messageType: 'std_msgs/Float64',
+  });
+  zPub = new ROSLIB.Topic({
+    ros, name: '/web_teleop/z_cmd',
+    messageType: 'std_msgs/Float64',
+  });
+}
+
+// ---- HTTP helpers ----
+async function api(path, body) {
+  const opts = { method: 'POST', headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  return await fetch(path, opts);
+}
+
+// ---- Session management ----
+async function acquireLock() {
+  const res = await api('/api/lock/acquire');
+  if (res.ok) {
+    const d = await res.json();
+    sessionToken = d.token;
+    startHeartbeat();
+    return true;
+  }
+  return false;
+}
+
+async function releaseLock() {
+  if (!sessionToken) return;
+  await stopControl();
+  await api('/api/lock/release', { token: sessionToken });
+  sessionToken = null;
+  stopHeartbeat();
+}
+
+function startHeartbeat() {
+  stopHeartbeat();
+  heartbeatHandle = setInterval(async () => {
+    const res = await api('/api/lock/heartbeat', { token: sessionToken });
+    if (!res.ok) { sessionToken = null; stopHeartbeat(); }
+  }, HEARTBEAT_MS);
+}
+
+function stopHeartbeat() {
+  if (heartbeatHandle) clearInterval(heartbeatHandle);
+  heartbeatHandle = null;
+}
+
+async function pollStatus() {
+  try {
+    const res = await fetch('/api/lock/status', {
+      headers: sessionToken ? { 'X-Session-Token': sessionToken } : {},
+    });
+    if (!res.ok) return;
+    updateSessionUI(await res.json());
+  } catch (_) {}
+}
+
+function updateSessionUI(s) {
+  const banner = document.getElementById('sessionBanner');
+  const label  = document.getElementById('sessionLabel');
+
+  if (!s.locked) {
+    banner.className = 'session-banner';
+    setDot('sessionDot', '');
+    label.textContent = 'Free -- no active operator';
+    renderButtons('idle');
+  } else if (s.is_mine) {
+    banner.className = 'session-banner mine';
+    setDot('sessionDot', 'green');
+    label.textContent = 'You hold the lock';
+    if (s.control_active) {
+      renderButtons(s.enabled ? 'controlling' : 'paused');
+    } else {
+      renderButtons('locked_mine');
+    }
+  } else {
+    banner.className = 'session-banner other';
+    setDot('sessionDot', 'yellow');
+    label.textContent = 'Locked by another operator';
+    renderButtons('locked_other');
+  }
+}
+
+// ---- Buttons ----
+function renderButtons(state) {
+  const area = document.getElementById('btnArea');
+  const deltaRow = document.getElementById('imuDelta');
+
+  if (state === 'idle') {
+    area.innerHTML = `<button class="btn btn-primary" id="btnAcquire">Take Control</button>`;
+    document.getElementById('btnAcquire').onclick = onTakeControl;
+    document.getElementById('gripperSlider').disabled = true;
+    deltaRow.style.display = 'none';
+
+  } else if (state === 'locked_mine') {
+    area.innerHTML = `
+      <button class="btn btn-primary" id="btnStartCtrl">Start Control</button>
+      <button class="btn btn-outline" id="btnRelease">Release Lock</button>`;
+    document.getElementById('btnStartCtrl').onclick = onStartControl;
+    document.getElementById('btnRelease').onclick = onRelease;
+    document.getElementById('gripperSlider').disabled = true;
+    deltaRow.style.display = 'none';
+    showIosNoticeIfNeeded();
+
+  } else if (state === 'controlling') {
+    area.innerHTML = `
+      <div class="ctrl-pill"><div class="dot red"></div>Controlling</div>
+      <button class="btn btn-reset" id="btnReset">Reset to Home</button>
+      <button class="btn btn-pause" id="btnPause">Free Arm (Torque Off)</button>
+      <button class="btn btn-danger" id="btnStopCtrl">Stop Control</button>
+      <button class="btn btn-outline" id="btnRelease">Release Lock</button>`;
+    document.getElementById('btnReset').onclick = onResetHome;
+    document.getElementById('btnPause').onclick = () => onSetEnabled(false);
+    document.getElementById('btnStopCtrl').onclick = onStopControl;
+    document.getElementById('btnRelease').onclick = onRelease;
+    document.getElementById('gripperSlider').disabled = false;
+    deltaRow.style.display = 'flex';
+
+  } else if (state === 'paused') {
+    area.innerHTML = `
+      <div class="ctrl-pill" style="color:var(--yellow)"><div class="dot yellow"></div>Torque Off -- Arm Free</div>
+      <button class="btn btn-primary" id="btnResume">Resume Control (Torque On)</button>
+      <button class="btn btn-reset" id="btnReset">Reset to Home</button>
+      <button class="btn btn-danger" id="btnStopCtrl">Stop Control</button>
+      <button class="btn btn-outline" id="btnRelease">Release Lock</button>`;
+    document.getElementById('btnResume').onclick = () => onSetEnabled(true);
+    document.getElementById('btnReset').onclick = onResetHome;
+    document.getElementById('btnStopCtrl').onclick = onStopControl;
+    document.getElementById('btnRelease').onclick = onRelease;
+    document.getElementById('gripperSlider').disabled = true;
+    deltaRow.style.display = 'none';
+
+  } else if (state === 'locked_other') {
+    area.innerHTML = `
+      <button class="btn btn-primary" disabled>Take Control</button>
+      <p class="notice">Another operator is active.</p>`;
+    document.getElementById('gripperSlider').disabled = true;
+    deltaRow.style.display = 'none';
+  }
+}
+
+// ---- Z axis: phone vertical acceleration ----
+function onDeviceMotion(event) {
+  const bRad = curBeta * Math.PI / 180;
+  const gRad = curGamma * Math.PI / 180;
+  let ax, ay, az;
+  let useGravityFallback = false;
+
+  const acc = event.acceleration;
+  if (acc && acc.x !== null && acc.y !== null) {
+    ax = acc.x; ay = acc.y; az = acc.z || 0;
+  } else {
+    const aig = event.accelerationIncludingGravity;
+    if (!aig || aig.x === null) return;
+    useGravityFallback = true;
+    ax = aig.x; ay = aig.y; az = aig.z || 0;
+  }
+
+  if (!motionSourceLogged) {
+    motionSourceLogged = true;
+    console.log('[Z] motion source:', useGravityFallback ? 'accelerationIncludingGravity' : 'acceleration');
+  }
+
+  // World-frame vertical component from device-frame acceleration
+  let aUp = -Math.cos(bRad) * Math.sin(gRad) * ax
+            + Math.sin(bRad) * ay
+            + Math.cos(bRad) * Math.cos(gRad) * az;
+
+  if (useGravityFallback) {
+    aUp -= 9.81;
+  }
+
+  filteredAUp = filteredAUp * (1 - Z_LPF) + aUp * Z_LPF;
+
+  let z = 0;
+  if (Math.abs(filteredAUp) > Z_DEADZONE_MS2) {
+    z = filteredAUp - Math.sign(filteredAUp) * Z_DEADZONE_MS2;
+  }
+  motionZOut = Math.max(-1, Math.min(1, z / Z_SCALE));
+
+  // Update Z display
+  const elZ = document.getElementById('deltaZ');
+  if (elZ) {
+    elZ.textContent = `Z: ${motionZOut.toFixed(2)}`;
+    elZ.className = Math.abs(motionZOut) > 0.01 ? 'active' : '';
+  }
+
+  // Rate-limited publish
+  const now = Date.now();
+  if (!controlActive || !rosConnected || !zPub) return;
+  if (now - lastZPublish < IMU_MS) return;
+  lastZPublish = now;
+  zPub.publish(new ROSLIB.Message({ data: motionZOut }));
+}
+
+function startMotionListener() {
+  if (motionListening) return;
+  motionListening = true;
+  window.addEventListener('devicemotion', onDeviceMotion, true);
+}
+
+function stopMotionListener() {
+  if (!motionListening) return;
+  motionListening = false;
+  window.removeEventListener('devicemotion', onDeviceMotion, true);
+  filteredAUp = 0;
+  motionZOut = 0;
+  if (rosConnected && zPub) {
+    zPub.publish(new ROSLIB.Message({ data: 0 }));
+  }
+}
+
+// ---- Control actions ----
+async function onTakeControl() {
+  const ok = await acquireLock();
+  await pollStatus();
+}
+
+async function onStartControl() {
+  const ok = await requestOrientationPermission();
+  if (!ok) return;
+
+  startImuListener();
+  startMotionListener();
+
+  homeAlpha = curAlpha;
+  homeBeta = curBeta;
+  homeGamma = curGamma;
+
+  const res = await api('/api/control/start', {
+    token: sessionToken,
+    alpha: curAlpha,
+    beta:  curBeta,
+    gamma: curGamma,
+  });
+
+  if (res.ok) {
+    controlActive = true;
+    acquireWakeLock();
+    await pollStatus();
+  } else {
+    const d = await res.json();
+    alert(`Could not start control: ${d.error || res.status}`);
+  }
+}
+
+async function onSetEnabled(on) {
+  if (!sessionToken) return;
+  const body = { token: sessionToken, enabled: on };
+  if (on) {
+    homeAlpha = curAlpha;
+    homeBeta = curBeta;
+    homeGamma = curGamma;
+    body.alpha = curAlpha;
+    body.beta  = curBeta;
+    body.gamma = curGamma;
+  }
+  await api('/api/control/enable', body);
+  await pollStatus();
+}
+
+async function onResetHome() {
+  if (!sessionToken) return;
+  homeAlpha = curAlpha;
+  homeBeta = curBeta;
+  homeGamma = curGamma;
+  await api('/api/control/reset', {
+    token: sessionToken,
+    alpha: curAlpha,
+    beta:  curBeta,
+    gamma: curGamma,
+  });
+}
+
+async function onStopControl() {
+  await stopControl();
+  await pollStatus();
+}
+
+async function stopControl() {
+  if (!controlActive) return;
+  controlActive = false;
+  stopImuListener();
+  stopMotionListener();
+  releaseWakeLock();
+  homeAlpha = null;
+  homeBeta = null;
+  homeGamma = null;
+  if (sessionToken) {
+    await api('/api/control/stop', { token: sessionToken });
+  }
+}
+
+async function onRelease() {
+  await releaseLock();
+  await pollStatus();
+}
+
+// ---- IMU ----
+async function requestOrientationPermission() {
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    try {
+      const perm = await DeviceOrientationEvent.requestPermission();
+      if (perm !== 'granted') {
+        document.getElementById('iosNotice').style.display = 'block';
+        return false;
+      }
+    } catch (e) { return false; }
+  }
+  if (typeof DeviceMotionEvent !== 'undefined' &&
+      typeof DeviceMotionEvent.requestPermission === 'function') {
+    try {
+      await DeviceMotionEvent.requestPermission();
+    } catch (_) {}
+  }
+  document.getElementById('iosNotice').style.display = 'none';
+  return true;
+}
+
+function startImuListener() {
+  if (imuListening) return;
+  imuListening = true;
+  window.addEventListener('deviceorientation', onOrientation, true);
+}
+
+function stopImuListener() {
+  if (!imuListening) return;
+  imuListening = false;
+  window.removeEventListener('deviceorientation', onOrientation, true);
+  setImuInactive();
+}
+
+function onOrientation(e) {
+  curAlpha = e.alpha ?? 0;
+  curBeta  = e.beta  ?? 0;
+  curGamma = e.gamma ?? 0;
+
+  setImuValue('valAlpha', curAlpha.toFixed(1));
+  setImuValue('valBeta',  curBeta.toFixed(1));
+  setImuValue('valGamma', curGamma.toFixed(1));
+
+  // Show deltas when controlling
+  if (controlActive && homeAlpha !== null) {
+    let dA = (curAlpha - homeAlpha) % 360;
+    if (dA > 180) dA -= 360;
+    if (dA < -180) dA += 360;
+    const dB = curBeta - homeBeta;
+    const dG = curGamma - homeGamma;
+    const DZ = 3;
+    const elYaw = document.getElementById('deltaYaw');
+    const elFB = document.getElementById('deltaFB');
+    const elLR = document.getElementById('deltaLR');
+    elYaw.textContent = `Yaw: ${dA.toFixed(1)}`;
+    elFB.textContent = `Pitch: ${dB.toFixed(1)}`;
+    elLR.textContent = `Roll: ${dG.toFixed(1)}`;
+    elYaw.className = Math.abs(dA) > DZ ? 'active' : '';
+    elFB.className = Math.abs(dB) > DZ ? 'active' : '';
+    elLR.className = Math.abs(dG) > DZ ? 'active' : '';
+  }
+
+  // Rate-limited publish
+  const now = Date.now();
+  if (!controlActive || !rosConnected || !imuPub) return;
+  if (now - lastImuPublish < IMU_MS) return;
+  lastImuPublish = now;
+
+  imuPub.publish(new ROSLIB.Message({
+    layout: { dim: [], data_offset: 0 },
+    data: [curAlpha, curBeta, curGamma],
+  }));
+}
+
+// ---- Gripper ----
+document.getElementById('gripperSlider').addEventListener('input', function () {
+  const val = parseInt(this.value, 10);
+  document.getElementById('gripperVal').textContent = val;
+  if (rosConnected && gripperPub) {
+    gripperPub.publish(new ROSLIB.Message({ data: val }));
+  }
+});
+
+// ---- Wake lock ----
+async function acquireWakeLock() {
+  if ('wakeLock' in navigator) {
+    try { wakeLock = await navigator.wakeLock.request('screen'); } catch (_) {}
+  }
+}
+function releaseWakeLock() {
+  if (wakeLock) { wakeLock.release(); wakeLock = null; }
+}
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && controlActive) acquireWakeLock();
+});
+
+// ---- Page unload cleanup ----
+window.addEventListener('beforeunload', () => {
+  if (sessionToken) {
+    navigator.sendBeacon('/api/lock/release',
+      new Blob([JSON.stringify({ token: sessionToken })],
+               { type: 'application/json' }));
+  }
+});
+
+// ---- UI helpers ----
+function setDot(id, color) {
+  document.getElementById(id).className = 'dot' + (color ? ' ' + color : '');
+}
+function setText(id, t) { document.getElementById(id).textContent = t; }
+function setImuValue(id, v) {
+  const el = document.getElementById(id);
+  el.textContent = v;
+  el.classList.remove('inactive');
+}
+function setImuInactive() {
+  ['valAlpha','valBeta','valGamma'].forEach(id => {
+    const el = document.getElementById(id);
+    el.textContent = '---';
+    el.classList.add('inactive');
+  });
+}
+
+function showIosNoticeIfNeeded() {
+  if (typeof DeviceOrientationEvent !== 'undefined' &&
+      typeof DeviceOrientationEvent.requestPermission === 'function') {
+    document.getElementById('iosNotice').style.display = 'block';
+  }
+  if (window.location.protocol !== 'https:') {
+    document.getElementById('httpNotice').style.display = 'block';
+  }
+}
+
+// ---- Boot ----
+window.addEventListener('load', () => {
+  const tryConnect = () => {
+    if (typeof ROSLIB === 'undefined') { setTimeout(tryConnect, 200); return; }
+    connectRos();
+  };
+  tryConnect();
+  renderButtons('idle');
+  pollStatus();
+  statusPollHandle = setInterval(pollStatus, STATUS_POLL_MS);
+});
+</script>
+</body>
+</html>
