@@ -43,14 +43,19 @@ Visualization Manager:
         Z: 0
       Plane: XY
       Plane Cell Count: 10
-      Reference Frame:
-        Value: true
+      Reference Frame: <Fixed Frame>
     - Alpha: 1
       Class: rviz_default_plugins/RobotModel
       Collision Enabled: false
       Description File: ""
-      Description Source: Parameter
-      Enabled: true
+      Description Source: Topic
+      Description Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /follower/robot_description
+      Enabled: false
       Links:
         All Links Enabled: true
         Expand Joint Details: false
@@ -61,7 +66,6 @@ Visualization Manager:
         Inertia: false
         Mass: false
       Name: RobotModel
-      Robot Description: robot_description
       TF Prefix: ""
       Update Interval: 0
       Value: true
@@ -79,7 +83,7 @@ Visualization Manager:
       Show Names: false
       Update Interval: 0
       Value: true
-    - Acceleration_Scaling_Factor: 0.4
+    - Acceleration_Scaling_Factor: 0.8
       Class: moveit_rviz_plugin/MotionPlanning
       Enabled: true
       Move Group Namespace: follower
@@ -157,7 +161,7 @@ Visualization Manager:
         Robot Alpha: 0.5
         Robot Color: 150; 50; 150
         Show Robot Collision: false
-        Show Robot Visual: true
+        Show Robot Visual: false
         Show Trail: false
         State Display Time: 0.05 s
         Trail Step Size: 1
@@ -174,7 +178,7 @@ Visualization Manager:
         Colliding Link Color: 255; 0; 0
         Goal State Alpha: 1
         Goal State Color: 250; 128; 0
-        Interactive Marker Size: 0
+        Interactive Marker Size: 0.2
         Joint Violation Color: 255; 0; 255
         Planning Group: arm
         Query Goal State: true
@@ -243,7 +247,7 @@ Visualization Manager:
         Show Robot Collision: false
         Show Robot Visual: true
         Value: true
-      Velocity_Scaling_Factor: 0.4
+      Velocity_Scaling_Factor: 0.8
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
