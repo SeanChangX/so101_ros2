@@ -16,7 +16,7 @@
 
 ## Overview
 
-This workspace contains several packages that provide description files, controllers and ROS2 integrations for the SO101 arm. The current focus is on the Lerobot ↔ ROS2 bridge, teleoperation workflows and recording datasets for imitation learning. MoveIt motion planning and Gazebo simulation support are a work in progress, while Isaac Sim integration is already available for teleoperating the leader/follower arms and streaming observations for data collection.
+This workspace packages URDF, controllers, and ROS 2 integration for the SO101 arm, centered on the Lerobot bridge, teleoperation, and imitation-learning recording. MoveIt 2 is available for follower motion planning; Gazebo is not ready yet; Isaac Sim hooks exist for sim teleop and data collection.
 
 ---
 
@@ -351,37 +351,17 @@ Watch the log output for any connection errors—most issues stem from missing c
 
 You should now be able to move the leader arm and see the follower mimicking its motions in real time and RViz which visualises the follower cameras and follower state comparing to the leader state.
 
-### Run a web teleoperation session
+### Run MoveIt on the follower (hardware)
 
-`so101_web_teleop` lets a phone browser act as the leader input. The web page reads
-browser orientation/motion events, sends them through rosbridge, and the ROS node publishes
-`/leader/joint_states` for the existing follower teleop pipeline.
-
-Start the follower, leader teleop component, rosbridge, and web server:
+Bring up the follower stack, MoveIt `move_group`, and RViz for interactive planning (no leader, no web UI):
 
 ```bash
-ros2 launch so101_web_teleop so101_web_teleoperate.launch.py
+ros2 launch so101_bringup so101_moveit_operate.launch.py
 ```
 
-Open `http://<robot-host-ip>:8080` on the phone, tap `Take Control`, then `Start Control`.
-The phone and robot host must be on the same network. Port `8080` serves the web UI and
-port `9090` is rosbridge.
+Optional: `start_rviz:=false` if you only need `move_group` without the RViz window. Use `tf_prefix_mode:=none` (default in this launch) so TF matches the MoveIt configuration.
 
-The default flow uses HTTP and does not require certificates. Some mobile browsers restrict
-orientation APIs on plain HTTP; for quick Android Chrome testing you can allow the origin via
-`chrome://flags/#unsafely-treat-insecure-origin-as-secure`.
-
-For HTTPS, provide both cert paths so the web server and rosbridge use TLS:
-
-```bash
-ros2 launch so101_web_teleop so101_web_teleoperate.launch.py \
-  http_port:=8443 \
-  ssl_cert:=/certs/robot.pem \
-  ssl_key:=/certs/robot-key.pem
-```
-
-When running through this repository's Docker compose setup, mount `./certs` to `/certs`
-before using the HTTPS launch arguments.
+Same quick start in the monorepo: [seeed-studio_so-arm101 README — MoveIt (follower)](https://github.com/SeanChangX/seeed-studio_so-arm101/blob/main/README.md#moveit-follower).
 
 ### Run an Isaac teleoperation session
 
@@ -594,6 +574,6 @@ Contributions are welcome. Check out the [CONTRIBUTING.md](CONTRIBUTING.md) file
 ---
 
 ## Roadmap for v0.2.0
-- [ ] Moveit integration
+- [x] MoveIt integration (follower: `so101_moveit_operate.launch.py` + `so101_moveit_config`)
 - [ ] Gazebo integration + teleop
 - [ ] IsaacLab

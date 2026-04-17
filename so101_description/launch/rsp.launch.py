@@ -9,93 +9,69 @@
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to the following conditions:
 #
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 #
 # THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 # IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 # FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 # AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 # LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+# THE SOFTWARE.
 
+import subprocess
 
 from launch import LaunchDescription
-from launch.substitutions import (
-    Command,
-    FindExecutable,
-    LaunchConfiguration,
-    PathJoinSubstitution,
-    PythonExpression,
-    TextSubstitution,
-)
+from launch.actions import OpaqueFunction
 from launch_ros.actions import Node
-from launch_ros.parameter_descriptions import ParameterValue
 
 
-def generate_launch_description():
-    # Launch configurations
-    model = LaunchConfiguration('model')
-    mode = LaunchConfiguration('mode')
-    robot_type = LaunchConfiguration('type')
+def _rsp_setup(context, *_args, **_kwargs):
+    model = context.launch_configurations['model']
+    mode = context.launch_configurations['mode']
+    robot_type = context.launch_configurations['type']
+    tf_prefix_mode = context.launch_configurations.get('tf_prefix_mode', 'prefixed')
 
-    # Determine use_sim based on mode
-    use_sim = PythonExpression(["'", mode, "' != 'real'"])
-
-    # Robot description
-    robot_description = ParameterValue(
-        Command(
-            [
-                PathJoinSubstitution([FindExecutable(name='xacro')]),
-                ' ',
-                model,
-                ' ',
-                'mode:=',
-                mode,
-            ]
-        ),
-        value_type=str,
+    proc = subprocess.run(
+        ['xacro', model, f'mode:={mode}'],
+        check=True,
+        capture_output=True,
+        text=True,
     )
+    robot_description = proc.stdout
+    use_sim = mode != 'real'
 
-    # Robot state publisher node
-    robot_state_publisher_node = Node(
+    params = [
+        {'robot_description': robot_description},
+        {'use_sim_time': use_sim},
+    ]
+    if tf_prefix_mode != 'none':
+        params.append({'frame_prefix': f'{robot_type}/'})
+
+    child_base = 'base_link' if tf_prefix_mode == 'none' else f'{robot_type}/base_link'
+
+    rsp = Node(
         package='robot_state_publisher',
         executable='robot_state_publisher',
-        parameters=[
-            {'robot_description': robot_description},
-            {'use_sim_time': use_sim},
-            {
-                'frame_prefix': [
-                    robot_type,
-                    TextSubstitution(text='/'),
-                ]
-            },
-        ],
+        output='screen',
+        parameters=params,
         namespace=robot_type,
     )
-
-    # Static transform publisher: world -> {robot_type}/base_link
-    static_tf_node = Node(
+    static_tf = Node(
         package='tf2_ros',
         executable='static_transform_publisher',
         name='world_to_base_link_publisher',
         namespace=robot_type,
-        arguments=[
-            '0',
-            '0',
-            '0',  # x y z
-            '0',
-            '0',
-            '0',  # roll pitch yaw (or qx qy qz qw)
-            'world',  # parent frame
-            [robot_type, TextSubstitution(text='/base_link')],  # child frame
-        ],
+        arguments=['0', '0', '0', '0', '0', '0', 'world', child_base],
+        output='log',
     )
+    return [rsp, static_tf]
 
+
+def generate_launch_description():
     return LaunchDescription(
         [
-            robot_state_publisher_node,
-            static_tf_node,
+            OpaqueFunction(function=_rsp_setup),
         ]
     )

@@ -20,6 +20,7 @@
 
 #include "so101_hardware_interface/so101_hardware_bridge.hpp"
 
+#include <cmath>
 #include <limits>
 #include <vector>
 
@@ -94,7 +95,7 @@ hardware_interface::CallbackReturn So101HardwareBridge::on_activate(const rclcpp
 
   RCLCPP_INFO(
     node_->get_logger(),
-    "So101HardwareBridge activated. Subscribing to /joint_states and publishing to /joint_commands.");
+    "So101HardwareBridge activated. Subscribing to joint_states_raw and publishing joint_commands.");
   return hardware_interface::CallbackReturn::SUCCESS;
 }
 
@@ -120,24 +121,26 @@ hardware_interface::return_type So101HardwareBridge::write(
   const rclcpp::Time &,
   const rclcpp::Duration &)
 {
-  // Create and publish the command message to the Python node
-  auto msg = std::make_unique<std_msgs::msg::Float64MultiArray>();
-
-  //Fill the message with a timestamp
-
-  // Ensure commands are not NaN before sending
-  for (size_t i = 0; i < hw_commands_.size(); ++i) {
-    if (std::isnan(hw_commands_[i])) {
-      // If a command is NaN, use the last known position instead.
-      // This prevents sending invalid commands on startup before the first
-      // command is received from a controller.
-      std::lock_guard<std::mutex> guard(lock_);
-      msg->data.push_back(hw_positions_[i]);
-    } else {
-      msg->data.push_back(hw_commands_[i]);
+  // If a command is NaN, use the last known hardware position (hold). Before the
+  // first joint_states_raw arrives, positions are still NaN — do not publish that
+  // to the follower (Python would fail converting NaN to integer servo targets).
+  std::vector<double> row(hw_commands_.size());
+  {
+    std::lock_guard<std::mutex> guard(lock_);
+    for (size_t i = 0; i < hw_commands_.size(); ++i) {
+      double v = hw_commands_[i];
+      if (!std::isfinite(v)) {
+        v = hw_positions_[i];
+      }
+      if (!std::isfinite(v)) {
+        return hardware_interface::return_type::OK;
+      }
+      row[i] = v;
     }
   }
 
+  auto msg = std::make_unique<std_msgs::msg::Float64MultiArray>();
+  msg->data = std::move(row);
   cmd_publisher_->publish(std::move(msg));
 
   return hardware_interface::return_type::OK;

@@ -1,0 +1,6 @@
+arm:
+  kinematics_solver: kdl_kinematics_plugin/KDLKinematicsPlugin
+  kinematics_solver_search_resolution: 0.005
+  # Interactive dragging needs more time than batch planning; 0.05s was too tight for 5-DOF IK.
+  kinematics_solver_timeout: 0.15
+  kinematics_solver_attempts: 12

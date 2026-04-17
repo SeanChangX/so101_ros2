@@ -23,7 +23,7 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import GroupAction, IncludeLaunchDescription, TimerAction
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, TimerAction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 
@@ -35,6 +35,13 @@ def generate_launch_description():
     description_pkg = get_package_share_directory('so101_description')
 
     model = LaunchConfiguration('model')
+    tf_prefix_mode = LaunchConfiguration('tf_prefix_mode')
+
+    tf_prefix_mode_arg = DeclareLaunchArgument(
+        'tf_prefix_mode',
+        default_value='prefixed',
+        description='See so101_description/launch/rsp.launch.py (prefixed vs none for MoveIt).',
+    )
 
     follower_rsp_group = GroupAction(
         scoped=True,  # Make namespaces work correctly
@@ -47,6 +54,7 @@ def generate_launch_description():
                     'model': model,
                     'mode': 'real',  # leader always hardware
                     'type': 'follower',
+                    'tf_prefix_mode': tf_prefix_mode,
                 }.items(),
             ),
         ],
@@ -82,6 +90,7 @@ def generate_launch_description():
 
     return LaunchDescription(
         [
+            tf_prefix_mode_arg,
             follower_rsp_group,
             robot_launch,
             delayed_controller_manager,

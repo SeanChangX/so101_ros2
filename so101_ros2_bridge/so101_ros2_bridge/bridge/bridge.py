@@ -375,6 +375,9 @@ class FollowerBridge(SO101ROS2Bridge):
             )
             return
 
+        if not all(math.isfinite(float(msg.data[i])) for i in range(len(msg.data))):
+            return
+
         target_positions = {}
         for i, joint in enumerate(self.JOINT_NAMES):
             desired_pos = msg.data[i]
