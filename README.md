@@ -351,6 +351,26 @@ Watch the log output for any connection errors—most issues stem from missing c
 
 You should now be able to move the leader arm and see the follower mimicking its motions in real time and RViz which visualises the follower cameras and follower state comparing to the leader state.
 
+### Run WebXR phone teleoperation (pose to IK)
+
+Bring up follower hardware and the WebXR teleop server (no leader arm required):
+
+```bash
+ros2 launch so101_bringup so101_webxr_teleop.launch.py \
+  tf_prefix_mode:=none \
+  webxr_host:=0.0.0.0 \
+  webxr_port:=4443
+```
+
+Open `https://<this-pc-ip>:4443` from a WebXR-capable phone on the same network.
+
+Notes:
+
+- This mode consumes phone/WebXR pose and sends arm commands to `/follower/arm_controller/joint_trajectory`.
+- Gripper values from the web UI are mapped to `control_msgs/GripperCommand` goals on `/follower/gripper_controller/gripper_cmd`.
+- You can tune gripper behavior with launch args: `gripper_action_name`, `gripper_min_position`, `gripper_max_position`, `gripper_deadband`, `gripper_rate_hz`, `gripper_max_effort`.
+- Phone camera permission alone does not guarantee AR passthrough rendering in the page; motion control depends on WebXR pose tracking.
+
 ### Run MoveIt on the follower (hardware)
 
 Bring up the follower stack, MoveIt `move_group`, and RViz for interactive planning (no leader, no web UI):

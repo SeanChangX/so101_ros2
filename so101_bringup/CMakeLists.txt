@@ -19,6 +19,8 @@ install(DIRECTORY launch DESTINATION share/${PROJECT_NAME}
 
 install(PROGRAMS
   scripts/camera_tf_tuner.py
+  scripts/robot_description_latched_pub.py
+  scripts/so101_webxr_teleop.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

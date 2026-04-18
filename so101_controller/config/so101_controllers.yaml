@@ -1,7 +1,7 @@
 /follower:
   controller_manager:
     ros__parameters:
-      update_rate: 50  # Hz
+      update_rate: 100  # Hz
 
       arm_controller:
         type: joint_trajectory_controller/JointTrajectoryController
@@ -15,7 +15,7 @@
   arm_controller:
 
     ros__parameters:
-      update_rate: 25
+      update_rate: 100
       type: joint_trajectory_controller/JointTrajectoryController
       joints:
         - shoulder_pan
